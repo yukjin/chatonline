@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+    <title>chatonline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 25px Helvetica, Arial;background-color: black;color: green}
+        form input {border: 0; border-bottom-width:1;background-color: black;border-bottom-color: white;width: 100%;height:30px;color: green;font-size: 25px;}
+        #messages { list-style-type: none; margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+<ul id="messages"></ul>
+<ul><li id='typingshow'></li></ul>
+<div id='joinshow'></div>
+<div id='leftshow'></div>
+<div id='onlineshow'></div>
+<div><form action="">
+
+    <input id="m" autocomplete="off" />
+</form></div>
+
+<script src="jquery-1.10.2.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    $('#m').focus();
+    var socket = io();
+    var typingIps={};
+    var typing=false;
+    var lastTypingTime;
+    function updateTyping() {
+        if (!typing) {
+            typing = true;
+            socket.emit('typing');
+        }
+        lastTypingTime = (new Date()).getTime();
+
+        setTimeout(function () {
+            var typingTimer = (new Date()).getTime();
+            var timeDiff = typingTimer - lastTypingTime;
+            if (timeDiff >= 500 && typing) {
+                socket.emit('stop typing');
+                typing = false;
+            }
+        }, 500);
+    }
+    $('form').submit(function(){
+        if($('#m').val()===''){
+            return false;
+        }
+        $('#messages').append($('<li>').text('我说：'+$('#m').val()));
+        socket.emit('chat message',$('#m').val());
+        socket.emit('stop typing');
+        typing = false;
+        $('#m').val('');
+        return false;
+    });
+    $('#m').keyup(function(){
+        updateTyping();
+    });
+    socket.on('online num',function(msg){
+        $('#onlineshow').text('当前在线'+msg+'人');
+    });
+
+    socket.on('join', function (msg) {
+        $('#joinshow').text(msg.ip+'加入');
+    });
+    socket.on('typing',function(msg){
+        typingIps[msg.ip]=msg.ip;
+        var typingArr=[];
+        for(var ip in typingIps){
+            typingArr.push(typingIps[ip]);
+        }
+        $('#typingshow').text(typingArr.join(',') + '正在输入...');
+    });
+    socket.on('stop typing',function(msg){
+        delete typingIps[msg.ip];
+        var typingArr=[];
+        for(var ip in typingIps){
+            typingArr.push(typingIps[ip]);
+        }
+        if(typingArr.length===0){
+            $('#typingshow').text('');
+        }else{
+            $('#typingshow').text(typingArr.join(',') + '正在输入...');
+        }
+    });
+    socket.on('chat message', function(msg){
+        $('#messages').append($('<li>').text(msg.ip+'说：'+msg.content));
+    });
+    socket.on('user left', function(msg){
+        $('#leftshow').text(msg.ip+'离开了');
+        $('#onlineshow').text('当前在线'+msg.onlineNum+'人');
+    });
+    </script>
+</body>
+</html>
