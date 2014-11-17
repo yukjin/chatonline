@@ -3,7 +3,7 @@
  */
 var express = require('express');
 var app=express();
-var control=require('./control.js');
+var control=require('./control');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var ips={};
